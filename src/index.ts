@@ -1,6 +1,9 @@
 import { mat4 } from 'gl-matrix';
 import { ProgramInfo } from "./models/program-info.model";
 import { VertexBuffer } from './models/vertex-buffer.mode';
+import { fromFetch } from 'rxjs/fetch';
+import { from, of, Observable, throwError } from 'rxjs';
+import { switchMap, catchError, mergeMap, tap, filter, shareReplay } from 'rxjs/operators';
 
 // current: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Lighting_in_WebGL
 
@@ -8,6 +11,10 @@ window.onload = main;
 let cubeRotation = 0;
 
 function main() {
+  fetchShaderSource('shader.fs').subscribe((crawler: ReadStreamCrawler) => console.log(crawler.parsed, '\nend'));
+  fetchShaderSource('shader.vs').subscribe((crawler: ReadStreamCrawler) => console.log(crawler.parsed, '\nend'));
+  fetchShaderSource('shader.fs').subscribe((crawler: ReadStreamCrawler) => console.log(crawler.parsed, '\nend'));
+
   const vsSource = `
   attribute vec4 aVertexPosition;
   attribute vec3 aVertexNormal;
@@ -55,6 +62,7 @@ function main() {
   let gl: WebGLRenderingContext | null;
   const handleResize = () => {
     // TODO: Configure this with some menu
+    // TODO: There is more logic that has to be rerun in this event for this to work properly
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
@@ -63,7 +71,7 @@ function main() {
   }
   
   handleResize();
-  window.addEventListener("resize", handleResize);
+  //fromEvent(document, 'resize').subscribe(() => handleResize());
 
   // Only continue if WebGL is available and working
   if (gl === null) {
@@ -110,6 +118,64 @@ function main() {
   requestAnimationFrame(render);
 }
 
+const utf8Decoder = new TextDecoder();
+
+interface ReadStreamCrawler {
+  parsed: string;
+  streamPos: ReadableStreamReadResult<Uint8Array> | null;
+  reader: ReadableStreamDefaultReader<Uint8Array>;
+}
+
+function readStreamResult(crawl: ReadStreamCrawler): Observable<ReadStreamCrawler> {
+  if (crawl.streamPos !== null) {
+    crawl.parsed += utf8Decoder.decode(crawl.streamPos.value) ?? '';
+    if (crawl.streamPos.done) {
+      return of(crawl); 
+    }
+  }
+
+  return from(crawl.reader.read()).pipe(
+    switchMap((streamPos: ReadableStreamReadResult<Uint8Array>) => {
+      const crawler: ReadStreamCrawler = {parsed: crawl.parsed, streamPos, reader: crawl.reader};
+      return of(crawler);
+    }),
+    switchMap((crawler: ReadStreamCrawler) => readStreamResult(crawler))
+  );
+}
+
+function fetchShaderSource(location: string) {
+  return loadShaderSource(location).pipe(
+    tap(value => (!value) ? console.error('Loaded shader was null') : null),
+    filter(value => !!value),
+    switchMap((body: ReadableStream<Uint8Array>) => {
+      
+      const reader = body.getReader();
+      return of(reader);
+    }),
+    switchMap((reader: ReadableStreamDefaultReader<Uint8Array>) => {
+      const crawler: ReadStreamCrawler = { parsed: '', streamPos: null, reader: reader };
+      return readStreamResult(crawler);
+    }),
+    shareReplay(2)
+  );
+}
+
+/// Fetches shader relative to the shaders location
+function loadShaderSource(location: string): Observable<ReadableStream<Uint8Array> | null>  {
+  const utf8Decoder = new TextDecoder();
+
+  return fromFetch(`../assets/shaders/${location}`).pipe(
+    switchMap(
+      (response: Response) => {
+        if (!response.ok) {
+          throwError(`Failed to retrieve shader as ${location}`)
+        }
+      
+        return of(response.body)
+      }
+    ),
+  );
+}
 
 // TODO: return error type if failed
 // Initialize a shader program, so WebGL knows how to draw our data
