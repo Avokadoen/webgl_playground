@@ -1,5 +1,5 @@
 import { from, of, Observable, throwError } from 'rxjs';
-import { switchMap, tap, filter, shareReplay, exhaustMap, concatMap, mergeMap, map } from 'rxjs/operators';
+import { switchMap, tap, filter, shareReplay, map } from 'rxjs/operators';
 import { fromFetch } from 'rxjs/fetch';
 
 interface ReadStreamCrawler {
