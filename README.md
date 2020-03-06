@@ -1,6 +1,9 @@
 ## WebGL playground 🖼️
 This is a little webgl project to learn some basic webgl and have some fun while doing so. :- )
 
+#### current features
+- Loading assets (shaders) using rxjs (reactive loading)
+
 ## Current output 👀
 5. march 2020
 

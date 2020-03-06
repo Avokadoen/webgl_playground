@@ -1,10 +1,10 @@
-import { mat4 } from 'gl-matrix';
+import { mat4, vec3 } from 'gl-matrix';
 import { ProgramInfo } from "./models/program-info.model";
-import { fromFetch } from 'rxjs/fetch';
-import { from, of, Observable, throwError, merge } from 'rxjs';
-import { switchMap, tap, filter, shareReplay, catchError } from 'rxjs/operators';
+import { merge } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { ShaderLoading } from './shader/shader-loader';
 import { Shader, ShaderType } from './models/shader.model';
+import { ModelObject } from './models/model-object.model';
 
 // current: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Lighting_in_WebGL
 
@@ -34,24 +34,21 @@ function main() {
     alert("Unable to initialize WebGL. Your browser or machine may not support it.");
   }
 
-  {
-    let vsSource: string = undefined;
-    let fsSource: string = undefined;
-
-    merge(ShaderLoading.fetchShaderSource('shader.fs'), ShaderLoading.fetchShaderSource('shader.vs')).pipe(
-      filter((parsed: Shader) => {
-        switch (parsed.type) {
-          case (ShaderType.Vertex):
-            vsSource = parsed.source;
-            break;
-          case (ShaderType.Fragment):
-            fsSource = parsed.source;
-            break;
-        }
-        return !!vsSource && !!fsSource;
-      }),
-    ).subscribe(() =>initWebGL(gl, vsSource, fsSource));
-  }
+  let vsSource: string = undefined;
+  let fsSource: string = undefined;
+  merge(ShaderLoading.fetchShaderSource('shader.fs'), ShaderLoading.fetchShaderSource('shader.vs')).pipe(
+    filter((parsed: Shader) => {
+      switch (parsed.type) {
+        case (ShaderType.Vertex):
+          vsSource = parsed.source;
+          break;
+        case (ShaderType.Fragment):
+          fsSource = parsed.source;
+          break;
+      }
+      return !!vsSource && !!fsSource;
+    }),
+  ).subscribe(() =>initWebGL(gl, vsSource, fsSource));
 }
 
 function initWebGL(gl: WebGLRenderingContext, vsSource: string, fsSource: string): void {
@@ -63,6 +60,7 @@ function initWebGL(gl: WebGLRenderingContext, vsSource: string, fsSource: string
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
       textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
       vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+      translation: gl.getAttribLocation(shaderProgram, 'aTranslation'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
@@ -72,7 +70,7 @@ function initWebGL(gl: WebGLRenderingContext, vsSource: string, fsSource: string
     },
   };
 
-  const indexBuffer = initBuffers(gl, programInfo);
+  const testModel = initBuffers(gl, programInfo);
 
   // Load texture
   const texture = loadTexture(gl, '../assets/textures/cube_texture.png');
@@ -87,7 +85,7 @@ function initWebGL(gl: WebGLRenderingContext, vsSource: string, fsSource: string
     const deltaTime = now - then;
     then = now;
   
-    drawScene(gl, programInfo, indexBuffer, texture, deltaTime);
+    drawScene(gl, programInfo, texture, deltaTime);
   
     requestAnimationFrame(render);
   }
@@ -185,8 +183,7 @@ function loadTexture(gl: WebGLRenderingContext, url: string): WebGLTexture {
 
 // TODO: Allow for any position and color buffer
 // Creates our position, index and color buffer data which it also sends to the GPU
-function initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): WebGLBuffer {
-
+function initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): ModelObject {
   // position data
   const positionBuffer = gl.createBuffer();
 
@@ -312,8 +309,8 @@ function initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): WebGL
     gl.enableVertexAttribArray(programInfo.attributeLocation.vertexNormal);
   }
 
-  const textureCoordBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+  const uvBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
 
   const textureCoordinates = [
     // Front
@@ -357,7 +354,7 @@ function initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): WebGL
     const normalize = false; // don't normalize
     const stride = 0; // how many bytes to get from one set to the next
     const offset = 0; // how many bytes inside the buffer to start from
-    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
     gl.vertexAttribPointer(programInfo.attributeLocation.textureCoord, num, type, normalize, stride, offset);
     gl.enableVertexAttribArray(programInfo.attributeLocation.textureCoord);
   }
@@ -376,15 +373,43 @@ function initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): WebGL
   ];
 
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
-  return indexBuffer;
+  const offset = 0.1;
+  let index = 0;
+  const translations = new Float32Array(400);
+  for(let y = -10; y < 10; y += 2) {
+    for(let x = -10; x < 10; x += 2) {
+        const xT = x * 5 + offset;
+        const yT = y * 5 + offset;
+        translations[index++] = xT; // x
+        translations[index++] = yT; // y
+        translations[index++] = 0;  // w
+        translations[index++] = 100; // z
+    }
+  }
+
+  const translationsBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, translationsBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, translations, gl.STATIC_DRAW);
+
+  const ext = gl.getExtension("ANGLE_instanced_arrays");
+  gl.enableVertexAttribArray(programInfo.attributeLocation.translation);
+  gl.vertexAttribPointer(programInfo.attributeLocation.translation, 4, gl.FLOAT, false, 16, 0);
+  ext.vertexAttribDivisorANGLE(programInfo.attributeLocation.translation, 1); // This makes it instanced!
+
+  return {
+    positionBuffer,
+    normalBuffer,
+    uvBuffer,
+    indexBuffer,
+    translationsBuffer
+  }
 }
 
 // TODO: draw scene should not care about delta time, all uniforms should be accessed through ProgramInfo, or another 
 //       unkown concept
-function drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, indexBuffer: WebGLBuffer, texture: WebGLTexture, deltaTime: number) {
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-
+function drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, texture: WebGLTexture, deltaTime: number) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
   gl.clearDepth(1.0);                 // Clear everything
   gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -410,7 +435,6 @@ function drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, indexBuf
   );
 
   const modelViewMatrix = mat4.create();
-  mat4.translate(modelViewMatrix, modelViewMatrix, [-0.0, 0.0, -6.0]); 
   mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotation, [0, 0, 1]);
   mat4.rotate(modelViewMatrix, modelViewMatrix, cubeRotation * .7, [0, 1, 0]);
 
@@ -448,10 +472,11 @@ function drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, indexBuf
   gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
 
   {
-    const vertexCount = 36;
+    const ext = gl.getExtension("ANGLE_instanced_arrays");
+    const indexCount = 36;
     const type = gl.UNSIGNED_SHORT;
     const offset = 0;
-    gl.drawElements(gl.TRIANGLES, vertexCount, type, offset);
+    ext.drawElementsInstancedANGLE(gl.TRIANGLES, indexCount, type, offset, 100);
   }
 
   cubeRotation += deltaTime;

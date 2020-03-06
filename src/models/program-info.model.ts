@@ -4,6 +4,7 @@ export interface ProgramInfo {
         vertexPosition: GLint;
         textureCoord: GLint;
         vertexNormal: GLint;
+        translation: GLint;
     };
     uniformLocations: {
         projectionMatrix: WebGLUniformLocation | null;

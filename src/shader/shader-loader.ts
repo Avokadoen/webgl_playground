@@ -20,7 +20,6 @@ export namespace ShaderLoading {
           tap(value => (!value) ? console.error('Loaded shader was null') : null),
           filter(value => !!value),
           switchMap((body: ReadableStream<Uint8Array>) => {
-            
             const reader = body.getReader();
             return of(reader);
           }),
