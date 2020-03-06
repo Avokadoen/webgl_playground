@@ -14,7 +14,6 @@
     vTextureCoord = aTextureCoord;
 
     // Apply lighting effect
-
     highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
     highp vec3 directionalLightColor = vec3(1, 1, 1);
     highp vec3 directionalVector = normalize(vec3(0.85, 0.8, 0.75));
