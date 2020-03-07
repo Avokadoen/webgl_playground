@@ -375,17 +375,16 @@ function initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): Model
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
-  const offset = 0.1;
   let index = 0;
-  const translations = new Float32Array(400);
-  for(let y = -10; y < 10; y += 2) {
-    for(let x = -10; x < 10; x += 2) {
-        const xT = x * 5 + offset;
-        const yT = y * 5 + offset;
-        translations[index++] = xT; // x
-        translations[index++] = yT; // y
-        translations[index++] = 0;  // w
-        translations[index++] = 100; // z
+  const translations = new Float32Array(1600);
+  for(let z = 1; z <= 4; z++) {
+    for(let y = -10; y < 10; y += 2) {
+      for(let x = -10; x < 10; x += 2) {
+          translations[index++] = x * (3 + z * 1.4); // x
+          translations[index++] = y * (3 + z); // y
+          translations[index++] = 0;  // w
+          translations[index++] = 100 - (z * 2); // z
+      }
     }
   }
 
@@ -476,7 +475,7 @@ function drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, texture:
     const indexCount = 36;
     const type = gl.UNSIGNED_SHORT;
     const offset = 0;
-    ext.drawElementsInstancedANGLE(gl.TRIANGLES, indexCount, type, offset, 100);
+    ext.drawElementsInstancedANGLE(gl.TRIANGLES, indexCount, type, offset, 400);
   }
 
   cubeRotation += deltaTime;
