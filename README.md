@@ -6,13 +6,13 @@ This is a little webgl project to learn some basic webgl and have some fun while
 - Basic mesh instancing
 
 ## Current output 👀
-5. march 2020
+- 5. march 2020
 
-["cube rotating"](cube_rotate.gif)
+    - ["cube rotating"](cube_rotate.gif)
 
-7. march
+- 7. march
 
-!["mesh instancing"](cube_rotate_2.gif)
+    - !["mesh instancing"](cube_rotate_2.gif)
 
 ## How to run 🚀
 clone
