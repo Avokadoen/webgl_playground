@@ -1,8 +1,9 @@
-import { mat4, vec3 } from 'gl-matrix';
+import { mat4 } from 'gl-matrix';
 import { ProgramInfo } from "../models/program-info.model";
 import { ModelObject } from '../models/model-object.model';
 import { Camera } from '../camera/camera.model';
-import { Velocity } from '../models/velocity';
+import { fromEvent } from 'rxjs';
+import { tap } from 'rxjs/operators';
 
 export class Core {
     cubeRotation: number = 0;
@@ -37,25 +38,32 @@ export class Core {
         gl.useProgram(programInfo.program);
 
         this.camera = Camera.init(gl.canvas.width / gl.canvas.height);
+        this.initInput();
 
         let then = 0;
         // Draw the scene repeatedly
-        const render = (now: number) => {
+        const loop = (now: number) => {
             now *= 0.001;  // convert to seconds
             const deltaTime = now - then;
             then = now;
+            
+            this.updateScene(deltaTime);
+            this.drawScene(gl, programInfo, texture);
         
-            this.drawScene(gl, programInfo, texture, deltaTime);
-        
-            requestAnimationFrame(render);
+            requestAnimationFrame(loop);
         }
         
-        requestAnimationFrame(render);
+        requestAnimationFrame(loop);
+    }
+
+    public updateScene(deltaTime: number) {
+        this.camera.update(deltaTime);
+        this.cubeRotation += deltaTime;
     }
 
     // TODO: draw scene should not care about delta time, all uniforms should be accessed through ProgramInfo, or another 
     //       unkown concept
-    public drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, texture: WebGLTexture, deltaTime: number) {
+    public drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, texture: WebGLTexture) {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
         gl.clearDepth(1.0);                 // Clear everything
         gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -64,9 +72,6 @@ export class Core {
         // Clear the canvas before we start drawing on it.
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       
-
-        this.camera.update(deltaTime);
-
         const modelViewMatrix = mat4.create();
         mat4.rotate(modelViewMatrix, modelViewMatrix, this.cubeRotation, [0, 0, 1]);
         mat4.rotate(modelViewMatrix, modelViewMatrix, this.cubeRotation * .7, [0, 1, 0]);
@@ -110,13 +115,36 @@ export class Core {
             const offset = 0;
             ext.drawElementsInstancedANGLE(gl.TRIANGLES, indexCount, type, offset, 400);
         }
-      
-        this.cubeRotation += deltaTime;
+    }
+
+    // TODO: This logic will be move into a input handler class
+    private initInput() {
+        const keyDownEvent = fromEvent(document, 'keydown').pipe(
+            tap((event: KeyboardEvent) => console.log(event.key))
+        );
+
+        // TODO: input class with a key dictionary with functions bound to each used key
+        keyDownEvent.subscribe((event: KeyboardEvent) => {
+            if (event.defaultPrevented) {
+                return; // Do nothing if the event was already processed
+            }
+
+            switch(event.key) {
+                case 'w':
+                    this.camera.state.velocity.positional[2] = 10;
+                    break;
+                default: 
+                    this.camera.state.velocity.positional[2] = 0;
+                    break;
+            }
+
+            event.preventDefault();
+        });
     }
       
     // TODO: return error type if failed
     // Initialize a shader program, so WebGL knows how to draw our data
-    initShaderProgram(gl: WebGLRenderingContext, vsSource: string, fsSource: string): WebGLProgram | null {
+    private initShaderProgram(gl: WebGLRenderingContext, vsSource: string, fsSource: string): WebGLProgram | null {
         const vertexShader = this.loadShader(gl, gl.VERTEX_SHADER, vsSource);
         const fragmentShader = this.loadShader(gl, gl.FRAGMENT_SHADER, fsSource);
       
@@ -137,7 +165,7 @@ export class Core {
       
       // creates a shader of the given type, uploads the source and
       // compiles it.
-    loadShader(gl: WebGLRenderingContext, type: GLenum, source: string): WebGLShader | null {
+    private loadShader(gl: WebGLRenderingContext, type: GLenum, source: string): WebGLShader | null {
         const shader = gl.createShader(type);
         
         // Send the source to the shader object
@@ -158,7 +186,7 @@ export class Core {
       
       // Initialize a texture and load an image.
       // When the image finished loading copy it into the texture.
-    loadTexture(gl: WebGLRenderingContext, url: string): WebGLTexture {
+    private loadTexture(gl: WebGLRenderingContext, url: string): WebGLTexture {
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
       
@@ -204,7 +232,7 @@ export class Core {
       
     // TODO: Allow for any position and color buffer
     // Creates our position, index and color buffer data which it also sends to the GPU
-    initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): ModelObject {
+    private initBuffers(gl: WebGLRenderingContext, programInfo: ProgramInfo): ModelObject {
         // position data
         const positionBuffer = gl.createBuffer();
       
