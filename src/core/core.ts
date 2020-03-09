@@ -1,7 +1,7 @@
 import { mat4 } from 'gl-matrix';
 import { ProgramInfo } from "../models/program-info.model";
 import { ModelObject } from '../models/model-object.model';
-import { Camera } from '../camera/camera.model';
+import { Camera } from './camera/camera.model';
 import { fromEvent } from 'rxjs';
 import { tap } from 'rxjs/operators';
 
@@ -38,6 +38,7 @@ export class Core {
         gl.useProgram(programInfo.program);
 
         this.camera = Camera.init(gl.canvas.width / gl.canvas.height);
+        //this.camera.setTurnAxis([0, 1, 0]);
         this.initInput();
 
         let then = 0;
@@ -391,7 +392,7 @@ export class Core {
             0.0,  0.0,
             1.0,  0.0,
             1.0,  1.0,
-          0.0,  1.0,
+            0.0,  1.0,
         ];
       
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
@@ -425,14 +426,13 @@ export class Core {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
       
         let index = 0;
-        const translations = new Float32Array(1600);
+        const translations = new Float32Array(1200);
         for(let z = 1; z <= 4; z++) {
           for(let y = -10; y < 10; y += 2) {
             for(let x = -10; x < 10; x += 2) {
-                translations[index++] = x * (3 + z * 1.4);  // x
-                translations[index++] = y * (3 + z);        // y
-                translations[index++] = 0;                  // w
-                translations[index++] = 100 - (z * 2);      // z
+                translations[index++] = x;   // x
+                translations[index++] = y;   // y
+                translations[index++] = z * 5 - 50;     // z
             }
           }
         }
@@ -443,7 +443,7 @@ export class Core {
       
         const ext = gl.getExtension("ANGLE_instanced_arrays");
         gl.enableVertexAttribArray(programInfo.attributeLocation.translation);
-        gl.vertexAttribPointer(programInfo.attributeLocation.translation, 4, gl.FLOAT, false, 16, 0);
+        gl.vertexAttribPointer(programInfo.attributeLocation.translation, 3, gl.FLOAT, false, 12, 0);
         ext.vertexAttribDivisorANGLE(programInfo.attributeLocation.translation, 1); // This makes it instanced!
       
         return {

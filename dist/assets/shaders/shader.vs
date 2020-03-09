@@ -1,5 +1,5 @@
   attribute vec4 aVertexPosition;
-  attribute vec4 aTranslation;
+  attribute vec3 aTranslation;
   attribute vec3 aVertexNormal;
   attribute vec2 aTextureCoord;
 
@@ -13,7 +13,7 @@
   
 
   void main(void) {
-    gl_Position = (uProjectionMatrix * uModelViewMatrix * aVertexPosition) + aTranslation;
+    gl_Position = (uProjectionMatrix * ((uModelViewMatrix * aVertexPosition) + vec4(aTranslation, 1)));
     vTextureCoord = aTextureCoord;
 
     // Apply lighting effect
