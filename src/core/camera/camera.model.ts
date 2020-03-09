@@ -1,6 +1,6 @@
 import { Velocity } from "../../models/velocity";
 import { mat4, vec3 } from 'gl-matrix';
-import { IUpdate } from '../i-update';
+import { IUpdate } from '../iupdate';
 
 // TODO
 

@@ -38,7 +38,6 @@ export class Core {
         gl.useProgram(programInfo.program);
 
         this.camera = Camera.init(gl.canvas.width / gl.canvas.height);
-        //this.camera.setTurnAxis([0, 1, 0]);
         this.initInput();
 
         let then = 0;
@@ -427,12 +426,12 @@ export class Core {
       
         let index = 0;
         const translations = new Float32Array(1200);
-        for(let z = 1; z <= 4; z++) {
+        for(let z = -10; z < 10; z += 2) {
           for(let y = -10; y < 10; y += 2) {
             for(let x = -10; x < 10; x += 2) {
                 translations[index++] = x;   // x
                 translations[index++] = y;   // y
-                translations[index++] = z * 5 - 50;     // z
+                translations[index++] = z - 50;     // z
             }
           }
         }
