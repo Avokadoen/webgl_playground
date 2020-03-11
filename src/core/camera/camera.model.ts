@@ -1,6 +1,8 @@
 import { Velocity } from "../../models/velocity";
 import { mat4, vec3 } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
+import { InputDelegater } from '../input-system/input-delegater';
+import { DefaultKeybinding } from '../default-keybinding';
 
 // TODO
 
@@ -9,6 +11,7 @@ export interface CameraConfig {
     zNear?: number;
     zFar?: number;
     turnSensitivity?: number;
+    moveSpeed?: number;
 }
 
 namespace CameraConfig {
@@ -21,6 +24,7 @@ namespace CameraConfig {
             config.zFar = config.zFar ?? 100.0;
             config.turnSensitivity = config.turnSensitivity ?? 90;
             config.turnSensitivity *= Math.PI / 180;
+            config.moveSpeed = config.moveSpeed ?? 10;
         }
 
         return config;
@@ -31,7 +35,8 @@ namespace CameraConfig {
             fieldOfView: 45 * Math.PI / 180,
             zNear: 0.1,
             zFar: 100.0,
-            turnSensitivity: 90 * Math.PI / 180
+            turnSensitivity: 90 * Math.PI / 180,
+            moveSpeed: 10,
         }
     }
 }
@@ -39,17 +44,21 @@ namespace CameraConfig {
 export interface CameraState {
     velocity: Velocity;
     turnSensitivity: number;
+    moveSpeed: number;
+    effectiveMoveSpeed: number;
     turnAxis: vec3;
     projection: mat4;
 }
 
-export class Camera implements IUpdate {
+export class Camera implements IUpdate, DefaultKeybinding {
     state: CameraState;
 
-    private constructor(turnSensitivity: number, projection: mat4) {
+    private constructor(turnSensitivity: number, moveSpeed: number, projection: mat4) {
         this.state = {
             velocity: Velocity.identity(),
             turnSensitivity,
+            moveSpeed,
+            effectiveMoveSpeed: 0,
             turnAxis: [0, 0, 0],
             projection
         }
@@ -67,17 +76,52 @@ export class Camera implements IUpdate {
             config.zFar
         );
 
-        return new Camera(config.turnSensitivity, projectionMatrix);
+        
+        return new Camera(config.turnSensitivity, config.moveSpeed, projectionMatrix);
+    }
+
+    public setDefaultBindings(): void {
+        InputDelegater.registerKeyPressed('w').subscribe(() => this.move([0, 0, 1]));
+        InputDelegater.registerKeyUp('w').subscribe(() => this.stop([0, 0, 1]));
+
+        InputDelegater.registerKeyPressed('s').subscribe(() => this.move([0, 0, -1]));
+        InputDelegater.registerKeyUp('s').subscribe(() => this.stop([0, 0, 1]));
+
+        InputDelegater.registerKeyPressed('d').subscribe(() => this.move([-1, 0, 0]));
+        InputDelegater.registerKeyUp('d').subscribe(() => this.stop([1, 0, 0]));
+
+        InputDelegater.registerKeyPressed('a').subscribe(() => this.move([1, 0, 0]));
+        InputDelegater.registerKeyUp('a').subscribe(() => this.stop([1, 0, 0]));
     }
 
     public setTurnAxis(turnAxis: vec3): void {
         this.state.turnAxis = turnAxis;
     }
 
+    public move(direction: vec3): void {
+        this.state.effectiveMoveSpeed = this.state.moveSpeed;
+        vec3.normalize(direction, direction);
+        vec3.add(this.state.velocity.positional, direction, this.state.velocity.positional)
+        vec3.normalize(this.state.velocity.positional, this.state.velocity.positional);
+    }
+
+    public stop(direction: vec3): void {
+        for (let index = 0; index < 3; index++) {
+            if (direction[index] > 0) {
+                this.state.velocity.positional[index] = 0;
+            }            
+        }
+        vec3.normalize(this.state.velocity.positional, this.state.velocity.positional);
+    }    
+
+    // TODO: avoid creating new vec3 each frame
     public update(deltaTime: number): void {
-        const velocity = vec3.create(); 
-        vec3.scale(velocity, this.state.velocity.positional, deltaTime);
-        mat4.translate(this.state.projection, this.state.projection, velocity);
+        if (this.state.effectiveMoveSpeed > 0.1 || this.state.effectiveMoveSpeed < -0.1) {
+            let velocity = vec3.create(); 
+            vec3.scale(velocity, this.state.velocity.positional, deltaTime * this.state.effectiveMoveSpeed);
+            mat4.translate(this.state.projection, this.state.projection, velocity);
+        }
+      
         mat4.rotate(this.state.projection, this.state.projection, this.state.turnSensitivity * deltaTime, this.state.turnAxis);
     }
 }

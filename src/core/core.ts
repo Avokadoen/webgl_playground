@@ -38,7 +38,8 @@ export class Core {
         gl.useProgram(programInfo.program);
 
         this.camera = Camera.init(gl.canvas.width / gl.canvas.height);
-        this.initInput();
+        this.camera.setDefaultBindings();
+        //this.initInput();
 
         let then = 0;
         // Draw the scene repeatedly
@@ -117,30 +118,30 @@ export class Core {
         }
     }
 
-    // TODO: This logic will be move into a input handler class
-    private initInput() {
-        const keyDownEvent = fromEvent(document, 'keydown').pipe(
-            tap((event: KeyboardEvent) => console.log(event.key))
-        );
+    // // TODO: This logic will be move into a input handler class
+    // private initInput() {
+    //     const keyDownEvent = fromEvent(document, 'keydown').pipe(
+    //         tap((event: KeyboardEvent) => console.log(event.key))
+    //     );
 
-        // TODO: input class with a key dictionary with functions bound to each used key
-        keyDownEvent.subscribe((event: KeyboardEvent) => {
-            if (event.defaultPrevented) {
-                return; // Do nothing if the event was already processed
-            }
+    //     // TODO: input class with a key dictionary with functions bound to each used key
+    //     keyDownEvent.subscribe((event: KeyboardEvent) => {
+    //         if (event.defaultPrevented) {
+    //             return; // Do nothing if the event was already processed
+    //         }
 
-            switch(event.key) {
-                case 'w':
-                    this.camera.state.velocity.positional[2] = 10;
-                    break;
-                default: 
-                    this.camera.state.velocity.positional[2] = 0;
-                    break;
-            }
+    //         switch(event.key) {
+    //             case 'w':
+    //                 this.camera.state.velocity.positional[2] = 10;
+    //                 break;
+    //             default: 
+    //                 this.camera.state.velocity.positional[2] = 0;
+    //                 break;
+    //         }
 
-            event.preventDefault();
-        });
-    }
+    //         event.preventDefault();
+    //     });
+    // }
       
     // TODO: return error type if failed
     // Initialize a shader program, so WebGL knows how to draw our data
@@ -440,6 +441,7 @@ export class Core {
         gl.bindBuffer(gl.ARRAY_BUFFER, translationsBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, translations, gl.STATIC_DRAW);
       
+        // TODO: Remove use of extension, use WebGL 2.0 instancing instead.
         const ext = gl.getExtension("ANGLE_instanced_arrays");
         gl.enableVertexAttribArray(programInfo.attributeLocation.translation);
         gl.vertexAttribPointer(programInfo.attributeLocation.translation, 3, gl.FLOAT, false, 12, 0);
