@@ -38,8 +38,7 @@ export class Core {
         gl.useProgram(programInfo.program);
 
         this.camera = Camera.init(gl.canvas.width / gl.canvas.height);
-        this.camera.setDefaultBindings();
-        //this.initInput();
+        this.camera.setDefaultInput();
 
         let then = 0;
         // Draw the scene repeatedly
@@ -118,31 +117,6 @@ export class Core {
         }
     }
 
-    // // TODO: This logic will be move into a input handler class
-    // private initInput() {
-    //     const keyDownEvent = fromEvent(document, 'keydown').pipe(
-    //         tap((event: KeyboardEvent) => console.log(event.key))
-    //     );
-
-    //     // TODO: input class with a key dictionary with functions bound to each used key
-    //     keyDownEvent.subscribe((event: KeyboardEvent) => {
-    //         if (event.defaultPrevented) {
-    //             return; // Do nothing if the event was already processed
-    //         }
-
-    //         switch(event.key) {
-    //             case 'w':
-    //                 this.camera.state.velocity.positional[2] = 10;
-    //                 break;
-    //             default: 
-    //                 this.camera.state.velocity.positional[2] = 0;
-    //                 break;
-    //         }
-
-    //         event.preventDefault();
-    //     });
-    // }
-      
     // TODO: return error type if failed
     // Initialize a shader program, so WebGL knows how to draw our data
     private initShaderProgram(gl: WebGLRenderingContext, vsSource: string, fsSource: string): WebGLProgram | null {

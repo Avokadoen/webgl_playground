@@ -2,7 +2,7 @@ import { Velocity } from "../../models/velocity";
 import { mat4, vec3 } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
 import { InputDelegater } from '../input-system/input-delegater';
-import { DefaultKeybinding } from '../default-keybinding';
+import { DefaultInput } from '../default-input';
 import { map } from 'rxjs/operators';
 
 // TODO
@@ -52,7 +52,7 @@ export interface CameraState {
     activeInputs: string[];
 }
 
-export class Camera implements IUpdate, DefaultKeybinding {
+export class Camera implements IUpdate, DefaultInput {
     state: CameraState;
 
     private constructor(turnSensitivity: number, moveSpeed: number, projection: mat4) {
@@ -83,7 +83,7 @@ export class Camera implements IUpdate, DefaultKeybinding {
         return new Camera(config.turnSensitivity, config.moveSpeed, projectionMatrix);
     }
 
-    public setDefaultBindings(): void {
+    public setDefaultInput(): void {
         // TODO: probably move this into input delegater
         const handleDownInput = (key: string, dir: vec3) => {
             if (this.state.activeInputs.some(i => i === key)) {
@@ -115,6 +115,12 @@ export class Camera implements IUpdate, DefaultKeybinding {
         registerKey('s', [ 0,  0, -1]);
         registerKey('d', [-1,  0,  0]);
         registerKey('a', [ 1,  0,  0]);
+
+        InputDelegater.registerMouse().subscribe(event => this.turn([event.movementY, event.movementX, 0]));
+    }
+
+    public turn(axis: vec3): void {
+        vec3.normalize(this.state.turnAxis, axis);
     }
 
     public move(direction: vec3): void {
@@ -140,7 +146,8 @@ export class Camera implements IUpdate, DefaultKeybinding {
             vec3.scale(velocity, this.state.velocity.positional, deltaTime * this.state.effectiveMoveSpeed);
             mat4.translate(this.state.projection, this.state.projection, velocity);
         }
-      
+        
         mat4.rotate(this.state.projection, this.state.projection, this.state.turnSensitivity * deltaTime, this.state.turnAxis);
+        this.state.turnAxis = [0, 0, 0];
     }
 }

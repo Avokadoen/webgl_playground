@@ -25,6 +25,8 @@ export namespace InputDelegater {
         unsubscriber: new Subject<string>()
     }
 
+    const mouseEvent = fromEvent<MouseEvent>(window, 'mousemove');
+
     export function registerKeyDown(key: string): Observable<KeyboardEvent | null> {
         return registerKey(key, keyDownHandle);
     }
@@ -35,6 +37,10 @@ export namespace InputDelegater {
 
     export function registerKeyUp(key: string): Observable<KeyboardEvent | null> {
        return registerKey(key, keyUpHandle);
+    }
+
+    export function registerMouse(): Observable<MouseEvent> {
+        return mouseEvent;
     }
 
     function registerKey(key: string, handle: EventHandle): Observable<KeyboardEvent | null> {
