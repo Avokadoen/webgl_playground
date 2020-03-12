@@ -3,6 +3,7 @@ import { mat4, vec3 } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
 import { InputDelegater } from '../input-system/input-delegater';
 import { DefaultKeybinding } from '../default-keybinding';
+import { map } from 'rxjs/operators';
 
 // TODO
 
@@ -48,6 +49,7 @@ export interface CameraState {
     effectiveMoveSpeed: number;
     turnAxis: vec3;
     projection: mat4;
+    activeInputs: string[];
 }
 
 export class Camera implements IUpdate, DefaultKeybinding {
@@ -60,7 +62,8 @@ export class Camera implements IUpdate, DefaultKeybinding {
             moveSpeed,
             effectiveMoveSpeed: 0,
             turnAxis: [0, 0, 0],
-            projection
+            projection,
+            activeInputs: []
         }
     }
 
@@ -81,21 +84,37 @@ export class Camera implements IUpdate, DefaultKeybinding {
     }
 
     public setDefaultBindings(): void {
-        InputDelegater.registerKeyPressed('w').subscribe(() => this.move([0, 0, 1]));
-        InputDelegater.registerKeyUp('w').subscribe(() => this.stop([0, 0, 1]));
+        // TODO: probably move this into input delegater
+        const handleDownInput = (key: string, dir: vec3) => {
+            if (this.state.activeInputs.some(i => i === key)) {
+                return;
+            }
 
-        InputDelegater.registerKeyPressed('s').subscribe(() => this.move([0, 0, -1]));
-        InputDelegater.registerKeyUp('s').subscribe(() => this.stop([0, 0, 1]));
+            this.state.activeInputs.push(key);
+            this.move(dir);
+        }
 
-        InputDelegater.registerKeyPressed('d').subscribe(() => this.move([-1, 0, 0]));
-        InputDelegater.registerKeyUp('d').subscribe(() => this.stop([1, 0, 0]));
+        const handleUpInput = (key: string, dir: vec3) => {
+            const index = this.state.activeInputs.indexOf(key);
 
-        InputDelegater.registerKeyPressed('a').subscribe(() => this.move([1, 0, 0]));
-        InputDelegater.registerKeyUp('a').subscribe(() => this.stop([1, 0, 0]));
-    }
+            if (index < 0) {
+                return;
+            }
 
-    public setTurnAxis(turnAxis: vec3): void {
-        this.state.turnAxis = turnAxis;
+
+            this.state.activeInputs.splice(index, 1);
+            this.stop(dir);
+        }
+
+        const registerKey = (key: string, dir: vec3) => {
+            InputDelegater.registerKeyPressed(key).subscribe(() => handleDownInput(key, dir));
+            InputDelegater.registerKeyUp(key).subscribe(() => handleUpInput(key, dir));
+        }
+
+        registerKey('w', [ 0,  0,  1]);
+        registerKey('s', [ 0,  0, -1]);
+        registerKey('d', [-1,  0,  0]);
+        registerKey('a', [ 1,  0,  0]);
     }
 
     public move(direction: vec3): void {
@@ -107,7 +126,7 @@ export class Camera implements IUpdate, DefaultKeybinding {
 
     public stop(direction: vec3): void {
         for (let index = 0; index < 3; index++) {
-            if (direction[index] > 0) {
+            if (Math.abs(direction[index]) > 0) {
                 this.state.velocity.positional[index] = 0;
             }            
         }
