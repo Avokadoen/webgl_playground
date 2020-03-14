@@ -84,7 +84,7 @@ export class Core {
         gl.uniformMatrix4fv(
             programInfo.uniformLocations.projectionMatrix,
             false,
-            this.camera.state.projection
+            this.camera.state.transProjection
         );
       
         gl.uniformMatrix4fv(
@@ -113,7 +113,7 @@ export class Core {
             const indexCount = 36;
             const type = gl.UNSIGNED_SHORT;
             const offset = 0;
-            ext.drawElementsInstancedANGLE(gl.TRIANGLES, indexCount, type, offset, 400);
+            ext.drawElementsInstancedANGLE(gl.TRIANGLES, indexCount, type, offset, 1000);
         }
     }
 
@@ -400,7 +400,7 @@ export class Core {
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
       
         let index = 0;
-        const translations = new Float32Array(1200);
+        const translations = new Float32Array(3000);
         for(let z = -10; z < 10; z += 2) {
           for(let y = -10; y < 10; y += 2) {
             for(let x = -10; x < 10; x += 2) {

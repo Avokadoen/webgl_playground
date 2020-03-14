@@ -1,9 +1,10 @@
 import { Velocity } from "../../models/velocity";
-import { mat4, vec3 } from 'gl-matrix';
+import { mat4, vec3, vec4, quat } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
 import { InputDelegater } from '../input-system/input-delegater';
 import { DefaultInput } from '../default-input';
 import { map } from 'rxjs/operators';
+import { Transform, TransformFun } from '../transform.model';
 
 // TODO
 
@@ -50,20 +51,37 @@ export interface CameraState {
     turnAxis: vec3;
     projection: mat4;
     activeInputs: string[];
+    transform: Transform;
+    transProjection: mat4;
 }
 
 export class Camera implements IUpdate, DefaultInput {
     state: CameraState;
 
+    get rotation(): quat {
+        return this.state.transform.rotation;
+    }
+
+    // TODO: Move this somewhere else
+    get forward(): vec3 {
+        const forward = vec3.create();
+        forward[0] = 2 * (this.rotation[0] * this.rotation[2] - this.rotation[3] * this.rotation[1]);
+        forward[1] = 2 * (this.rotation[1] * this.rotation[2] + this.rotation[3] * this.rotation[0]);
+        forward[2] = 1 - 2 * (this.rotation[0] * this.rotation[0] + this.rotation[1] * this.rotation[1]);
+        return vec3.normalize(forward, forward);
+    }
+
     private constructor(turnSensitivity: number, moveSpeed: number, projection: mat4) {
         this.state = {
-            velocity: Velocity.identity(),
+            velocity: Velocity.create(),
             turnSensitivity,
             moveSpeed,
             effectiveMoveSpeed: 0,
             turnAxis: [0, 0, 0],
             projection,
-            activeInputs: []
+            activeInputs: [],
+            transform: TransformFun.create(),
+            transProjection: mat4.create()
         }
     }
 
@@ -126,6 +144,9 @@ export class Camera implements IUpdate, DefaultInput {
     public move(direction: vec3): void {
         this.state.effectiveMoveSpeed = this.state.moveSpeed;
         vec3.normalize(direction, direction);
+        console.log(this.forward)
+      //  vec 3.cross(direction, direction, this.forward)
+        console.log(direction);
         vec3.add(this.state.velocity.positional, direction, this.state.velocity.positional)
         vec3.normalize(this.state.velocity.positional, this.state.velocity.positional);
     }
@@ -139,15 +160,25 @@ export class Camera implements IUpdate, DefaultInput {
         vec3.normalize(this.state.velocity.positional, this.state.velocity.positional);
     }    
 
-    // TODO: avoid creating new vec3 each frame
+    // We do some logic that is usually offloaded to shader, but the sum should always be the same for each
+    // vertex, so we do it once each frame on the CPU instead
     public update(deltaTime: number): void {
         if (this.state.effectiveMoveSpeed > 0.1 || this.state.effectiveMoveSpeed < -0.1) {
+            // TODO: avoid creating vec3 here
             let velocity = vec3.create(); 
             vec3.scale(velocity, this.state.velocity.positional, deltaTime * this.state.effectiveMoveSpeed);
-            mat4.translate(this.state.projection, this.state.projection, velocity);
+            vec3.add(this.state.transform.position, this.state.transform.position, velocity);
         }
         
-        mat4.rotate(this.state.projection, this.state.projection, this.state.turnSensitivity * deltaTime, this.state.turnAxis);
+      //  vec3.scale(this.state.turnAxis, this.state.turnAxis, deltaTime * this.state.turnSensitivity);
+        const turn = quat.fromEuler(quat.create(), this.state.turnAxis[0], this.state.turnAxis[1], this.state.turnAxis[2])
+        quat.multiply(this.rotation, this.rotation, turn);
+
+        mat4.identity(this.state.transProjection);
+        mat4.multiply(this.state.transProjection, this.state.transProjection, mat4.fromQuat(mat4.create(), this.rotation));
+        mat4.translate(this.state.transProjection, this.state.transProjection, this.state.transform.position);
+        mat4.multiply(this.state.transProjection, this.state.projection, this.state.transProjection);
+        
         this.state.turnAxis = [0, 0, 0];
     }
 }

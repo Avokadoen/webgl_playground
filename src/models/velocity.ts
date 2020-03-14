@@ -7,10 +7,10 @@ export interface Velocity {
 }
 
 export namespace Velocity {
-    export function identity(): Velocity {
+    export function create(): Velocity {
         return {
-            positional: [0, 0, 0],
-            angular: [0, 0, 0]
+            positional: vec3.create(),
+            angular: vec3.create()
         }
     }
 }
