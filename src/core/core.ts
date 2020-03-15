@@ -2,8 +2,6 @@ import { mat4 } from 'gl-matrix';
 import { ProgramInfo } from "../models/program-info.model";
 import { ModelObject } from '../models/model-object.model';
 import { Camera } from './camera/camera.model';
-import { fromEvent } from 'rxjs';
-import { tap } from 'rxjs/operators';
 
 export class Core {
     cubeRotation: number = 0;

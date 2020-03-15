@@ -1,9 +1,8 @@
 import { Velocity } from "../../models/velocity";
-import { mat4, vec3, vec4, quat } from 'gl-matrix';
+import { mat4, vec3, quat } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
 import { InputDelegater } from '../input-system/input-delegater';
 import { DefaultInput } from '../default-input';
-import { map } from 'rxjs/operators';
 import { Transform, TransformFun } from '../transform.model';
 
 // TODO
@@ -56,6 +55,12 @@ export interface CameraState {
 }
 
 export class Camera implements IUpdate, DefaultInput {
+    // TODO: Move this to a vec3 prototype
+    readonly worldForward:  vec3 = [ 0,  0,  1];
+    readonly worldBackward: vec3 = [ 0,  0, -1];
+    readonly worldLeft:     vec3 = [-1,  0,  0];
+    readonly worldRigth:    vec3 = [ 1,  0,  0];
+
     state: CameraState;
 
     get rotation(): quat {
@@ -64,12 +69,21 @@ export class Camera implements IUpdate, DefaultInput {
 
     // TODO: Move this somewhere else
     get forward(): vec3 {
-        const forward = vec3.create();
-        forward[0] = 2 * (this.rotation[0] * this.rotation[2] - this.rotation[3] * this.rotation[1]);
-        forward[1] = 2 * (this.rotation[1] * this.rotation[2] + this.rotation[3] * this.rotation[0]);
-        forward[2] = 1 - 2 * (this.rotation[0] * this.rotation[0] + this.rotation[1] * this.rotation[1]);
-        return vec3.normalize(forward, forward);
+        return this.eulerToLocalDirection([0, 0, 0]);
     }
+
+    get backward(): vec3 {
+        return this.eulerToLocalDirection([0, -180, 0]);
+    }
+
+    get left(): vec3 {
+        return this.eulerToLocalDirection([0, -90, 0]);
+    }
+
+    get rigth(): vec3 {
+        return this.eulerToLocalDirection([0, 90, 0]);
+    }
+
 
     private constructor(turnSensitivity: number, moveSpeed: number, projection: mat4) {
         this.state = {
@@ -124,15 +138,15 @@ export class Camera implements IUpdate, DefaultInput {
             this.stop(dir);
         }
 
-        const registerKey = (key: string, dir: vec3) => {
-            InputDelegater.registerKeyPressed(key).subscribe(() => handleDownInput(key, dir));
-            InputDelegater.registerKeyUp(key).subscribe(() => handleUpInput(key, dir));
+        const registerKey = (key: string, dir: () => vec3) => {
+            InputDelegater.registerKeyPressed(key).subscribe(() => handleDownInput(key, dir()));
+            InputDelegater.registerKeyUp(key).subscribe(() => handleUpInput(key, dir()));
         }
 
-        registerKey('w', [ 0,  0,  1]);
-        registerKey('s', [ 0,  0, -1]);
-        registerKey('d', [-1,  0,  0]);
-        registerKey('a', [ 1,  0,  0]);
+        registerKey('w', () => this.forward);
+        registerKey('s', () => this.backward);
+        registerKey('d', () => this.rigth);
+        registerKey('a', () => this.left);
 
         InputDelegater.registerMouse().subscribe(event => this.turn([event.movementY, event.movementX, 0]));
     }
@@ -141,12 +155,11 @@ export class Camera implements IUpdate, DefaultInput {
         vec3.normalize(this.state.turnAxis, axis);
     }
 
+    /*
+    * Move camera relative to camera orientation
+    */
     public move(direction: vec3): void {
         this.state.effectiveMoveSpeed = this.state.moveSpeed;
-        vec3.normalize(direction, direction);
-        console.log(this.forward)
-      //  vec 3.cross(direction, direction, this.forward)
-        console.log(direction);
         vec3.add(this.state.velocity.positional, direction, this.state.velocity.positional)
         vec3.normalize(this.state.velocity.positional, this.state.velocity.positional);
     }
@@ -180,5 +193,16 @@ export class Camera implements IUpdate, DefaultInput {
         mat4.multiply(this.state.transProjection, this.state.projection, this.state.transProjection);
         
         this.state.turnAxis = [0, 0, 0];
+    }
+
+    private eulerToLocalDirection(euler: vec3): vec3 {
+        let rotation = quat.fromEuler(quat.create(), euler[0], euler[1], euler[2]);
+        quat.multiply(rotation, rotation, this.rotation);
+
+        const direction = vec3.create();
+        direction[0] = 2 * (rotation[0] * rotation[2] - rotation[3] * rotation[1]);
+        direction[1] = 2 * (rotation[1] * rotation[2] + rotation[3] * rotation[0]);
+        direction[2] = 1 - 2 * (rotation[0] * rotation[0] + rotation[1] * rotation[1]);
+        return vec3.normalize(direction, direction);
     }
 }
