@@ -11,7 +11,7 @@ export namespace TransformFun {
     export function create(): Transform {
         return {
             position: vec3.create(),
-            rotation: quat.create(),
+            rotation: quat.identity(quat.create()),
         };
     }
 }

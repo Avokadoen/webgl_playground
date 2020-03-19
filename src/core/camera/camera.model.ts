@@ -1,5 +1,5 @@
 import { Velocity } from "../../models/velocity";
-import { mat4, vec3, quat } from 'gl-matrix';
+import { mat4, vec3, quat, vec4, vec2 } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
 import { InputDelegater } from '../input-system/input-delegater';
 import { DefaultInput } from '../default-input';
@@ -24,7 +24,7 @@ namespace CameraConfig {
             config.zNear = config.zNear ?? 0.1;
             config.zFar = config.zFar ?? 100.0;
             config.turnSensitivity = config.turnSensitivity ?? 90;
-            config.turnSensitivity *= Math.PI / 180;
+            //config.turnSensitivity *= Math.PI / 180;
             config.moveSpeed = config.moveSpeed ?? 10;
         }
 
@@ -84,6 +84,15 @@ export class Camera implements IUpdate, DefaultInput {
         return this.eulerToLocalDirection([0, 90, 0]);
     }
 
+    hamiltonProduct(a: vec4, b: vec4): vec4 {
+        return [
+            a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+            (a[0] * b[1] + a[1] * b[0] - a[2] * b[3] - a[3] * b[2]),
+            (a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1]),
+            (a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0])
+        ]
+    }
+
 
     private constructor(turnSensitivity: number, moveSpeed: number, projection: mat4) {
         this.state = {
@@ -118,11 +127,11 @@ export class Camera implements IUpdate, DefaultInput {
     public setDefaultInput(): void {
         // TODO: probably move this into input delegater
         const handleDownInput = (key: string, dir: vec3) => {
-            if (this.state.activeInputs.some(i => i === key)) {
-                return;
-            }
+           if (!this.state.activeInputs.some(i => i === key)) {
+               this.state.activeInputs.push(key);
+           }
 
-            this.state.activeInputs.push(key);
+            
             this.move(dir);
         }
 
@@ -152,7 +161,15 @@ export class Camera implements IUpdate, DefaultInput {
     }
 
     public turn(axis: vec3): void {
-        vec3.normalize(this.state.turnAxis, axis);
+        if (axis[0] + axis[1] === 0) {
+            return;
+        }
+
+        vec3.normalize(axis, axis);
+        
+        const localAxis = this.hamiltonProduct(this.hamiltonProduct(this.rotation, [axis[0], axis[1], axis[2], 0]), quat.invert(quat.create(), this.rotation));
+    
+        this.state.turnAxis = [localAxis[0], localAxis[1], localAxis[2]];
     }
 
     /*
@@ -182,17 +199,26 @@ export class Camera implements IUpdate, DefaultInput {
             vec3.scale(velocity, this.state.velocity.positional, deltaTime * this.state.effectiveMoveSpeed);
             vec3.add(this.state.transform.position, this.state.transform.position, velocity);
         }
-        
-      //  vec3.scale(this.state.turnAxis, this.state.turnAxis, deltaTime * this.state.turnSensitivity);
-        const turn = quat.fromEuler(quat.create(), this.state.turnAxis[0], this.state.turnAxis[1], this.state.turnAxis[2])
-        quat.multiply(this.rotation, this.rotation, turn);
+
+        if (vec3.len(this.state.turnAxis) !== 0) {
+            // TODO: move magic number into sensitivity default
+            //       avoid create quat
+            const angularVel = quat.fromEuler(
+                quat.create(), 
+                this.state.turnAxis[0] * this.state.turnSensitivity * 40 * deltaTime,
+                this.state.turnAxis[1] * this.state.turnSensitivity * 40 * deltaTime,
+                this.state.turnAxis[2] * this.state.turnSensitivity * 40 * deltaTime,
+            );
+            quat.multiply(this.rotation, this.rotation, angularVel);
+            vec3.zero(this.state.turnAxis);
+        }
 
         mat4.identity(this.state.transProjection);
         mat4.multiply(this.state.transProjection, this.state.transProjection, mat4.fromQuat(mat4.create(), this.rotation));
         mat4.translate(this.state.transProjection, this.state.transProjection, this.state.transform.position);
         mat4.multiply(this.state.transProjection, this.state.projection, this.state.transProjection);
         
-        this.state.turnAxis = [0, 0, 0];
+        quat.identity(this.state.velocity.angular);
     }
 
     private eulerToLocalDirection(euler: vec3): vec3 {
