@@ -15,7 +15,7 @@ This is a little webgl project to learn some basic webgl and have some fun while
     - ["mesh instancing"](https://i.imgur.com/qNgp9qT.mp4)
 
 - 20\. march 
-    - !["camera controls"](https://i.imgur.com/g1pTJ97.mp4)
+    - !["camera controls"](https://i.imgur.com/g1pTJ97.gif)
 
 ## How to run 🚀
 clone
