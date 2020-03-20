@@ -25,6 +25,8 @@ export namespace InputDelegater {
         unsubscriber: new Subject<string>()
     }
 
+ 
+
     const mouseEvent = fromEvent<MouseEvent>(window, 'mousemove');
 
     export function registerKeyDown(key: string): Observable<KeyboardEvent | null> {
@@ -41,6 +43,25 @@ export namespace InputDelegater {
 
     export function registerMouse(): Observable<MouseEvent> {
         return mouseEvent;
+    }
+
+    
+    // Source: https://www.html5rocks.com/en/tutorials/pointerlock/intro/
+    // Isn't this a browser security issue?
+    export function setPointerLock(canvas: HTMLCanvasElement): boolean {
+        const havePointerLock = 'pointerLockElement' in document 
+        || 'mozPointerLockElement' in document 
+        || 'webkitPointerLockElement' in document;
+    
+        if (!havePointerLock) {
+            return false;
+        }
+
+        if (canvas) {
+            canvas.onclick = function() {
+                canvas.requestPointerLock();
+            }
+        }
     }
 
     function registerKey(key: string, handle: EventHandle): Observable<KeyboardEvent | null> {

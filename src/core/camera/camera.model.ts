@@ -54,7 +54,7 @@ export interface CameraState {
     transProjection: mat4;
 }
 
-export class Camera implements IUpdate, DefaultInput {
+export class Camera implements IUpdate {
     // TODO: Move this to a vec3 prototype
     readonly worldForward:  vec3 = [ 0,  0,  1];
     readonly worldBackward: vec3 = [ 0,  0, -1];
@@ -124,7 +124,7 @@ export class Camera implements IUpdate, DefaultInput {
         return new Camera(config.turnSensitivity, config.moveSpeed, projectionMatrix);
     }
 
-    public setDefaultInput(): void {
+    public setDefaultInput(canvas: HTMLCanvasElement): void {
         // TODO: probably move this into input delegater
         const handleDownInput = (key: string, dir: vec3) => {
            if (!this.state.activeInputs.some(i => i === key)) {
@@ -158,6 +158,8 @@ export class Camera implements IUpdate, DefaultInput {
         registerKey('a', () => this.left);
 
         InputDelegater.registerMouse().subscribe(event => this.turn([event.movementY, event.movementX, 0]));
+   
+        InputDelegater.setPointerLock(canvas);
     }
 
     public turn(axis: vec3): void {
@@ -167,9 +169,9 @@ export class Camera implements IUpdate, DefaultInput {
 
         vec3.normalize(axis, axis);
         
-        const localAxis = this.hamiltonProduct(this.hamiltonProduct(this.rotation, [axis[0], axis[1], axis[2], 0]), quat.invert(quat.create(), this.rotation));
+        const localAxis = this.hamiltonProduct(this.hamiltonProduct(this.rotation, [axis[0], 0, 0, 0]), quat.invert(quat.create(), this.rotation));
     
-        this.state.turnAxis = [localAxis[0], localAxis[1], localAxis[2]];
+        this.state.turnAxis = [-localAxis[0], axis[1], -localAxis[2]];
     }
 
     /*
@@ -205,9 +207,9 @@ export class Camera implements IUpdate, DefaultInput {
             //       avoid create quat
             const angularVel = quat.fromEuler(
                 quat.create(), 
-                this.state.turnAxis[0] * this.state.turnSensitivity * 40 * deltaTime,
-                this.state.turnAxis[1] * this.state.turnSensitivity * 40 * deltaTime,
-                this.state.turnAxis[2] * this.state.turnSensitivity * 40 * deltaTime,
+                this.state.turnAxis[0] * this.state.turnSensitivity * 70 * deltaTime,
+                this.state.turnAxis[1] * this.state.turnSensitivity * 70 * deltaTime,
+                this.state.turnAxis[2] * this.state.turnSensitivity * 70 * deltaTime,
             );
             quat.multiply(this.rotation, this.rotation, angularVel);
             vec3.zero(this.state.turnAxis);

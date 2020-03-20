@@ -2,6 +2,7 @@ import { mat4 } from 'gl-matrix';
 import { ProgramInfo } from "../models/program-info.model";
 import { ModelObject } from '../models/model-object.model';
 import { Camera } from './camera/camera.model';
+import { InputDelegater } from './input-system/input-delegater';
 
 export class Core {
     cubeRotation: number = 0;
@@ -36,8 +37,9 @@ export class Core {
         gl.useProgram(programInfo.program);
 
         this.camera = Camera.init(gl.canvas.width / gl.canvas.height);
-        this.camera.setDefaultInput();
-
+        
+        this.camera.setDefaultInput(gl.canvas as HTMLCanvasElement );
+        
         let then = 0;
         // Draw the scene repeatedly
         const loop = (now: number) => {
@@ -50,7 +52,7 @@ export class Core {
         
             requestAnimationFrame(loop);
         }
-        
+
         requestAnimationFrame(loop);
     }
 
