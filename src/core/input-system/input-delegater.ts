@@ -45,9 +45,6 @@ export namespace InputDelegater {
         return mouseEvent;
     }
 
-    
-    // Source: https://www.html5rocks.com/en/tutorials/pointerlock/intro/
-    // Isn't this a browser security issue?
     export function setPointerLock(canvas: HTMLCanvasElement): boolean {
         const havePointerLock = 'pointerLockElement' in document 
         || 'mozPointerLockElement' in document 
