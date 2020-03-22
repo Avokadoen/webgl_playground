@@ -8,14 +8,17 @@ This is a little webgl project to learn some basic webgl and have some fun while
 ## Gifs! 👀
 - 5\. march 2020
 
-    - ["cube rotating"](https://i.imgur.com/LlpKd7a)
+    - [cube rotating](https://i.imgur.com/LlpKd7a)
 
 - 7\. march
 
-    - ["mesh instancing"](https://i.imgur.com/qNgp9qT)
+    - [mesh instancing](https://i.imgur.com/qNgp9qT)
 
 - 20\. march 
-    - ["camera controls"](https://i.imgur.com/g1pTJ97)
+    - [camera controls](https://i.imgur.com/g1pTJ97)
+
+## Prerequisite
+You will need [npm](https://www.npmjs.com/get-npm) to install dependencies
 
 ## How to run 🚀
 clone
