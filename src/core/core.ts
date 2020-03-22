@@ -1,4 +1,4 @@
-import { mat4 } from 'gl-matrix';
+import { mat4, vec4 } from 'gl-matrix';
 import { ProgramInfo } from "../models/program-info.model";
 import { ModelObject } from '../models/model-object.model';
 import { Camera } from './camera/camera.model';
@@ -14,24 +14,21 @@ export class Core {
         // TODO: this should be move to a object-model thing
         const programInfo: ProgramInfo = {
             program: shaderProgram,
-            attributeLocation: {
-            vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-            textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
-            vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
-            translation: gl.getAttribLocation(shaderProgram, 'aTranslation'),
+            attributes: {
+                vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
+                vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
+                translation: gl.getAttribLocation(shaderProgram, 'aTranslation'),
             },
-            uniformLocations: {
-            projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-            modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
-            normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
-            uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
-            },
+            uniforms: {
+                projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+                modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+                normalMatrix: gl.getUniformLocation(shaderProgram, 'uNormalMatrix'),
+                color: gl.getUniformLocation(shaderProgram, 'uColor'),
+            }
         };
         
         this.initBuffers(gl, programInfo);
         
-        // Load texture
-        const texture = this.loadTexture(gl, '../assets/textures/cube_texture.png');
         
         // Tell WebGL to use our program when drawing
         gl.useProgram(programInfo.program);
@@ -48,7 +45,7 @@ export class Core {
             then = now;
             
             this.updateScene(deltaTime);
-            this.drawScene(gl, programInfo, texture);
+            this.drawScene(gl, programInfo);
         
             requestAnimationFrame(loop);
         }
@@ -63,7 +60,7 @@ export class Core {
 
     // TODO: draw scene should not care about delta time, all uniforms should be accessed through ProgramInfo, or another 
     //       unkown concept
-    public drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo, texture: WebGLTexture) {
+    public drawScene(gl: WebGLRenderingContext, programInfo: ProgramInfo) {
         gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
         gl.clearDepth(1.0);                 // Clear everything
         gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -79,34 +76,33 @@ export class Core {
         const normalMatrix = mat4.create();
         mat4.invert(normalMatrix, modelViewMatrix);
         mat4.transpose(normalMatrix, normalMatrix);
+
+        const color = [1.0, 0.0, 0.0, 1.0] as vec4;
+        
       
         // Set the shader uniforms
         gl.uniformMatrix4fv(
-            programInfo.uniformLocations.projectionMatrix,
+            programInfo.uniforms.projectionMatrix,
             false,
             this.camera.state.transProjection
         );
       
         gl.uniformMatrix4fv(
-            programInfo.uniformLocations.modelViewMatrix,
+            programInfo.uniforms.modelViewMatrix,
             false,
             modelViewMatrix
         );
       
         gl.uniformMatrix4fv(
-            programInfo.uniformLocations.normalMatrix,
+            programInfo.uniforms.normalMatrix,
             false,
             normalMatrix
         );
-      
-        // Tell WebGL we want to affect texture unit 0
-        gl.activeTexture(gl.TEXTURE0);
-      
-        // Bind the texture to texture unit 0
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-      
-        // Tell the shader we bound the texture to texture unit 0
-        gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+
+        gl.uniform4fv(
+            programInfo.uniforms.color,
+            color
+        )
       
         {
             const ext = gl.getExtension("ANGLE_instanced_arrays");
@@ -157,52 +153,6 @@ export class Core {
         }
         
         return shader;
-    }
-      
-    // Initialize a texture and load an image.
-    // When the image finished loading copy it into the texture.
-    private loadTexture(gl: WebGLRenderingContext, url: string): WebGLTexture {
-        const texture = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-      
-        const level = 0;
-        const internalFormat = gl.RGBA;
-        const width = 1;
-        const height = 1;
-        const border = 0;
-        const srcFormat = gl.RGBA;
-        const srcType = gl.UNSIGNED_BYTE;
-        const pixel = new Uint8Array([0, 0, 255, 255]);  // opaque blue
-      
-        gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                      width, height, border, srcFormat, srcType,
-                      pixel);
-      
-        const image = new Image();
-        image.onload = () => {
-          gl.bindTexture(gl.TEXTURE_2D, texture);
-          gl.texImage2D(gl.TEXTURE_2D, level, internalFormat,
-                        srcFormat, srcType, image);
-      
-          const isPowerOf2 = (value: number) => (value & (value - 1)) == 0;
-      
-          // WebGL1 has different requirements for power of 2 images
-          // vs non power of 2 images so check if the image is a
-          // power of 2 in both dimensions.
-          if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-              // Yes, it's a power of 2. Generate mips.
-              gl.generateMipmap(gl.TEXTURE_2D);
-          } else {
-              // No, it's not a power of 2. Turn off mips and set
-              // wrapping to clamp to edge
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-              gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-          }
-        };
-        image.src = url;
-      
-        return texture;
     }
       
     // TODO: Allow for any position and color buffer
@@ -260,7 +210,7 @@ export class Core {
             const stride = 0;       
             const offset = 0;        
             gl.vertexAttribPointer(
-                programInfo.attributeLocation.vertexPosition,
+                programInfo.attributes.vertexPosition,
                 numComponents,
                 type,
                 normalize,
@@ -268,7 +218,7 @@ export class Core {
                 offset
             );
         
-            gl.enableVertexAttribArray( programInfo.attributeLocation.vertexPosition);
+            gl.enableVertexAttribArray(programInfo.attributes.vertexPosition);
         }
       
         const normalBuffer = gl.createBuffer();
@@ -322,7 +272,7 @@ export class Core {
             const offset = 0;
             gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
             gl.vertexAttribPointer(
-                programInfo.attributeLocation.vertexNormal,
+                programInfo.attributes.vertexNormal,
                 numComponents,
                 type,
                 normalize,
@@ -330,57 +280,7 @@ export class Core {
                 offset
             );
         
-            gl.enableVertexAttribArray(programInfo.attributeLocation.vertexNormal);
-        }
-      
-        const uvBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-      
-        const textureCoordinates = [
-            // Front
-            0.0,  0.0,
-            1.0,  0.0,
-            1.0,  1.0,
-            0.0,  1.0,
-            // Back
-            0.0,  0.0,
-            1.0,  0.0,
-            1.0,  1.0,
-            0.0,  1.0,
-            // Top
-            0.0,  0.0,
-            1.0,  0.0,
-            1.0,  1.0,
-            0.0,  1.0,
-            // Bottom
-            0.0,  0.0,
-            1.0,  0.0,
-            1.0,  1.0,
-            0.0,  1.0,
-            // Right
-            0.0,  0.0,
-            1.0,  0.0,
-            1.0,  1.0,
-            0.0,  1.0,
-            // Left
-            0.0,  0.0,
-            1.0,  0.0,
-            1.0,  1.0,
-            0.0,  1.0,
-        ];
-      
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
-      
-        // tell webgl how to pull out the texture coordinates from buffer
-        {
-            const num = 2; // every coordinate composed of 2 values
-            const type = gl.FLOAT; // the data in the buffer is 32 bit float
-            const normalize = false; // don't normalize
-            const stride = 0; // how many bytes to get from one set to the next
-            const offset = 0; // how many bytes inside the buffer to start from
-            gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-            gl.vertexAttribPointer(programInfo.attributeLocation.textureCoord, num, type, normalize, stride, offset);
-            gl.enableVertexAttribArray(programInfo.attributeLocation.textureCoord);
+            gl.enableVertexAttribArray(programInfo.attributes.vertexNormal);
         }
       
         // index data
@@ -417,14 +317,13 @@ export class Core {
       
         // TODO: Remove use of extension, use WebGL 2.0 instancing instead.
         const ext = gl.getExtension("ANGLE_instanced_arrays");
-        gl.enableVertexAttribArray(programInfo.attributeLocation.translation);
-        gl.vertexAttribPointer(programInfo.attributeLocation.translation, 3, gl.FLOAT, false, 12, 0);
-        ext.vertexAttribDivisorANGLE(programInfo.attributeLocation.translation, 1); // This makes it instanced!
+        gl.enableVertexAttribArray(programInfo.attributes.translation);
+        gl.vertexAttribPointer(programInfo.attributes.translation, 3, gl.FLOAT, false, 12, 0);
+        ext.vertexAttribDivisorANGLE(programInfo.attributes.translation, 1); // This makes it instanced!
       
         return {
             positionBuffer,
             normalBuffer,
-            uvBuffer,
             indexBuffer,
             translationsBuffer
         }

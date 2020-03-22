@@ -54,11 +54,10 @@ export namespace InputDelegater {
             return false;
         }
 
-        if (canvas) {
-            canvas.onclick = function() {
-                canvas.requestPointerLock();
-            }
+        canvas.onclick = function() {
+            canvas.requestPointerLock();
         }
+        return true;
     }
 
     function registerKey(key: string, handle: EventHandle): Observable<KeyboardEvent | null> {
