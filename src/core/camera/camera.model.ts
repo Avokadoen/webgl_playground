@@ -2,7 +2,6 @@ import { Velocity } from "../../models/velocity";
 import { mat4, vec3, quat, vec4, vec2 } from 'gl-matrix';
 import { IUpdate } from '../iupdate';
 import { InputDelegater } from '../input-system/input-delegater';
-import { DefaultInput } from '../default-input';
 import { Transform, TransformFun } from '../transform.model';
 
 // TODO
@@ -127,21 +126,18 @@ export class Camera implements IUpdate {
     public setDefaultInput(canvas: HTMLCanvasElement): void {
         // TODO: probably move this into input delegater
         const handleDownInput = (key: string, dir: vec3) => {
-           if (!this.state.activeInputs.some(i => i === key)) {
-               this.state.activeInputs.push(key);
-           }
-
+            if (!this.state.activeInputs.some(i => i === key)) {
+                this.state.activeInputs.push(key);
+            }
             
             this.move(dir);
         }
 
         const handleUpInput = (key: string, dir: vec3) => {
             const index = this.state.activeInputs.indexOf(key);
-
             if (index < 0) {
                 return;
             }
-
 
             this.state.activeInputs.splice(index, 1);
             this.stop(dir);
@@ -157,21 +153,28 @@ export class Camera implements IUpdate {
         registerKey('d', () => this.rigth);
         registerKey('a', () => this.left);
 
+        {
+            const success = InputDelegater.setPointerLock(canvas);
+            if (!success) {
+                console.error('Failed to bind canvas to pointer lock, your browser might not support it');
+            }
+        }
         InputDelegater.registerMouse().subscribe(event => this.turn([event.movementY, event.movementX, 0]));
-   
-        InputDelegater.setPointerLock(canvas);
     }
 
     public turn(axis: vec3): void {
+        // If turn will result in no-op
         if (axis[0] + axis[1] === 0) {
             return;
         }
 
         vec3.normalize(axis, axis);
         
+        // Transform the desired turn axis with our current rotation
         const localAxis = this.hamiltonProduct(this.hamiltonProduct(this.rotation, [axis[0], 0, 0, 0]), quat.invert(quat.create(), this.rotation));
     
-        this.state.turnAxis = [-localAxis[0], axis[1], -localAxis[2]];
+        // Only use transformed axis for the desired x rotation (turning sideways should always be around the y axis) 
+        vec3.normalize(this.state.turnAxis, [-localAxis[0], axis[1], -localAxis[2]]);
     }
 
     /*

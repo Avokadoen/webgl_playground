@@ -159,8 +159,8 @@ export class Core {
         return shader;
     }
       
-      // Initialize a texture and load an image.
-      // When the image finished loading copy it into the texture.
+    // Initialize a texture and load an image.
+    // When the image finished loading copy it into the texture.
     private loadTexture(gl: WebGLRenderingContext, url: string): WebGLTexture {
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
